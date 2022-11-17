@@ -27,7 +27,7 @@ from torch.nn import ReLU
 from torch.nn import LogSoftmax
 from torch import flatten
 
-
+ 
 
 class ClothDataset(Dataset):
 
@@ -64,9 +64,10 @@ class ClothDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
-        
-cloth_dataset = ClothDataset(csv_file='./DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
-                                    root_dir='./DataCollection-REDfirst/')
+ 
+      
+cloth_dataset = ClothDataset(csv_file='../DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
+                                    root_dir='../DataCollection-REDfirst/')
                                     
 training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=4, shuffle=True, num_workers=2)                                            
         

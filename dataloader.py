@@ -51,8 +51,8 @@ class ClothDataset(Dataset):
         
         
         
-cloth_dataset = ClothDataset(csv_file='./DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
-                                    root_dir='./DataCollection-REDfirst/')
+cloth_dataset = ClothDataset(csv_file='../DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
+                                    root_dir='../DataCollection-REDfirst/')
 
 for i in range(len(cloth_dataset)):
     sample = cloth_dataset[i]
