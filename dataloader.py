@@ -37,12 +37,11 @@ class ClothDataset(Dataset):
         img_name = os.path.join(self.root_dir,
                                 self.OGP.iloc[idx, 0])
         image = io.imread(img_name)
-        #image/=255.0
-        image = image.astype('float32')
-        image/=255.0
+        image = image.astype('float32')/255.0
+        image = np.array([image])
         OGP_pose = self.OGP.iloc[idx, 1:]
         OGP_pose = np.array([OGP_pose])
-        OGP_pose = OGP_pose.astype('float').reshape(-1, 1)
+        OGP_pose = OGP_pose.astype('float').flatten()
         sample = {'image': image, 'OGP_pose': OGP_pose}
 
         if self.transform:
@@ -57,6 +56,12 @@ cloth_dataset = ClothDataset(csv_file='./DataCollection-REDfirst/OGP_dataset_col
 
 for i in range(len(cloth_dataset)):
     sample = cloth_dataset[i]
-    print(i, sample['image'].shape, sample['OGP_pose'].shape)        
+    print('targets ', sample['OGP_pose'].shape)        
+        
+training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=4, shuffle=True, num_workers=2)
         
         
+for i, data in enumerate(training_loader):
+        # Every data instance is an input + label pair
+        print('labels ',data['OGP_pose'].shape)
+          

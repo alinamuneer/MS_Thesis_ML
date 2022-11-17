@@ -40,7 +40,7 @@ class Model(nn.Module):
         self.fc2 = nn.Linear(in_features=2048, out_features=2048)
         self.relu7 = ReLU()
         #final regression linear layer
-        self.fc3 = nn.Linear(in_features=2048, out_features=2)
+        self.fc3 = nn.Linear(in_features=2048, out_features=7)
 
 
 
@@ -65,11 +65,13 @@ class Model(nn.Module):
         x = self.relu7(x)
         #final layer is regression linear, binary limits 0->1
         output = self.fc3(x)
-        print(output)
+        print(output.shape)
 
         return output
 
 
 model = Model()
-x = torch.randn(1, 1, 256, 256)
-out = model(x)
+x = torch.randn(4, 1, 256, 256)
+outputs = model(x)
+y=torch.randn(4, 1,7)
+print(y.shape)
