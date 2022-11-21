@@ -28,6 +28,33 @@ from torch.nn import LogSoftmax
 from torch import flatten
 
  
+df=pd.read_csv('../DataCollection-REDfirst/OGP_dataset_collection_RED.csv', names=['image_name', 'x', 'y', 'z','w','X', 'Y', 'Z'], header=None)
+
+#FINDING MAX AND MIN
+max_x=df['x'].max()
+min_x=df['x'].min()
+
+max_y=df['y'].max()
+min_y=df['y'].min()
+
+max_z=df['z'].max()
+min_z=df['z'].min()
+
+max_w=df['w'].max()
+min_w=df['w'].min()
+
+max_X=df['X'].max()
+min_X=df['X'].min()
+
+max_Y=df['Y'].max()
+min_Y=df['Y'].min()
+
+max_Z=df['Z'].max()
+min_Z=df['Z'].min()
+
+
+
+
 
 class ClothDataset(Dataset):
 
@@ -57,6 +84,14 @@ class ClothDataset(Dataset):
         image = np.array([image])
         OGP_pose = self.OGP.iloc[idx, 1:]
         OGP_pose = np.array([OGP_pose])
+        #normalizing values between 0-1 using the max and min of each label column in csv
+        OGP_pose[0,0]=(OGP_pose[0,0]-min_x)/(max_x-min_x)
+        OGP_pose[0,1]=(OGP_pose[0,1]-min_y)/(max_y-min_y)
+        OGP_pose[0,2]=(OGP_pose[0,2]-min_z)/(max_z-min_z)
+        OGP_pose[0,3]=(OGP_pose[0,3]-min_w)/(max_w-min_w)
+        OGP_pose[0,4]=(OGP_pose[0,4]-min_X)/(max_X-min_X)
+        OGP_pose[0,5]=(OGP_pose[0,5]-min_Y)/(max_Y-min_Y)
+        OGP_pose[0,6]=(OGP_pose[0,6]-min_Z)/(max_Z-min_Z)
         OGP_pose = OGP_pose.astype('float').flatten()
         sample = {'image': image, 'OGP_pose': OGP_pose}
         
@@ -69,7 +104,7 @@ class ClothDataset(Dataset):
 cloth_dataset = ClothDataset(csv_file='../DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
                                     root_dir='../DataCollection-REDfirst/')
                                     
-training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=4, shuffle=True, num_workers=2)                                            
+training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuffle=True, num_workers=2)                                            
         
 
 
@@ -131,12 +166,13 @@ model = GraspEstimationModel()
 
 
 loss_fn = torch.nn.MSELoss()
+#loss_fn = torch.nn.SmoothL1Loss
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
 
 def train_one_epoch(epoch_index):
-    running_loss = 0.
-    last_loss = 0.
+    running_loss = 0.000
+    last_loss = 0.000
     
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
@@ -147,6 +183,7 @@ def train_one_epoch(epoch_index):
         #print('labels.view ',labels.view(-1, 1).shape)
         optimizer.zero_grad()
         outputs = model(images)
+        #print(outputs)
 
         # Compute the loss and its gradients
         #print('outputs model(images) ',outputs)
