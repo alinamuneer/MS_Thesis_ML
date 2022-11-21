@@ -85,14 +85,16 @@ class ClothDataset(Dataset):
         OGP_pose = self.OGP.iloc[idx, 1:]
         OGP_pose = np.array([OGP_pose])
         #normalizing values between 0-1 using the max and min of each label column in csv
-        OGP_pose[0,0]=(OGP_pose[0,0]-min_x)/(max_x-min_x)
-        OGP_pose[0,1]=(OGP_pose[0,1]-min_y)/(max_y-min_y)
-        OGP_pose[0,2]=(OGP_pose[0,2]-min_z)/(max_z-min_z)
-        OGP_pose[0,3]=(OGP_pose[0,3]-min_w)/(max_w-min_w)
+        #rather use a vector to do normalization, don't do one by one normalization here
+        #OGP_pose[0,0]=(OGP_pose[0,0]-min_x)/(max_x-min_x)
+        #OGP_pose[0,1]=(OGP_pose[0,1]-min_y)/(max_y-min_y)
+        #OGP_pose[0,2]=(OGP_pose[0,2]-min_z)/(max_z-min_z)
+        #OGP_pose[0,3]=(OGP_pose[0,3]-min_w)/(max_w-min_w)
         OGP_pose[0,4]=(OGP_pose[0,4]-min_X)/(max_X-min_X)
         OGP_pose[0,5]=(OGP_pose[0,5]-min_Y)/(max_Y-min_Y)
         OGP_pose[0,6]=(OGP_pose[0,6]-min_Z)/(max_Z-min_Z)
         OGP_pose = OGP_pose.astype('float').flatten()
+        # print(OGP_pose)
         sample = {'image': image, 'OGP_pose': OGP_pose}
         
         if self.transform:
@@ -113,7 +115,7 @@ training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuf
 class GraspEstimationModel(nn.Module):
 
 
- def __init__(self):
+    def __init__(self):
         super(GraspEstimationModel, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=(11, 11), stride=(2, 2), bias=False)
         self.relu1 = ReLU()
@@ -138,7 +140,7 @@ class GraspEstimationModel(nn.Module):
 
 
 
- def forward(self, x):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.relu1(x)
         x = self.maxpool1(x)
@@ -182,6 +184,7 @@ def train_one_epoch(epoch_index):
         #print('labels ', labels)
         #print('labels.view ',labels.view(-1, 1).shape)
         optimizer.zero_grad()
+        # print(labels)
         outputs = model(images)
         #print(outputs)
 
@@ -193,22 +196,16 @@ def train_one_epoch(epoch_index):
 
         # Adjust learning weights
         optimizer.step()
-        
-        # Gather data and report
-        running_loss += loss.item()
-        if i % 100 == 99:
-            last_loss = running_loss / 100 # loss per batch
 
 
-    return last_loss           
 
 
 
 epoch_number = 10
 # Make sure gradient tracking is on, and do a pass over the data
 model.train()
-avg_loss = train_one_epoch(epoch_number)
-print(avg_loss)
+train_one_epoch(epoch_number)
+
         
         
         
