@@ -187,7 +187,7 @@ def train_one_epoch(epoch_index):
         
         # Zero your gradients for every batch!
         optimizer.zero_grad()
-        # print(labels)
+        #print(labels)
         outputs = model(images)
         #print('....')
         #print('image 0', images[0])
