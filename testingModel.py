@@ -80,16 +80,17 @@ class ClothDataset(Dataset):
         img_name = os.path.join(self.root_dir,
                                 self.OGP.iloc[idx, 0])
         image = io.imread(img_name)
+        #print(self.OGP.iloc[idx, 0])
         image = image.astype('float32')/255.0
         image = np.array([image])
         OGP_pose = self.OGP.iloc[idx, 1:]
         OGP_pose = np.array([OGP_pose])
         #normalizing values between 0-1 using the max and min of each label column in csv
         #rather use a vector to do normalization, don't do one by one normalization here
-        #OGP_pose[0,0]=(OGP_pose[0,0]-min_x)/(max_x-min_x)
-        #OGP_pose[0,1]=(OGP_pose[0,1]-min_y)/(max_y-min_y)
-        #OGP_pose[0,2]=(OGP_pose[0,2]-min_z)/(max_z-min_z)
-        #OGP_pose[0,3]=(OGP_pose[0,3]-min_w)/(max_w-min_w)
+        OGP_pose[0,0]=(OGP_pose[0,0]-min_x)/(max_x-min_x)
+        OGP_pose[0,1]=(OGP_pose[0,1]-min_y)/(max_y-min_y)
+        OGP_pose[0,2]=(OGP_pose[0,2]-min_z)/(max_z-min_z)
+        OGP_pose[0,3]=(OGP_pose[0,3]-min_w)/(max_w-min_w)
         OGP_pose[0,4]=(OGP_pose[0,4]-min_X)/(max_X-min_X)
         OGP_pose[0,5]=(OGP_pose[0,5]-min_Y)/(max_Y-min_Y)
         OGP_pose[0,6]=(OGP_pose[0,6]-min_Z)/(max_Z-min_Z)
@@ -131,7 +132,7 @@ class GraspEstimationModel(nn.Module):
         self.relu5 = ReLU()
         self.maxpool3 = MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
         #this number 15488 is determined by running blender-3.2.1-linux-x64/test.py 
-        self.fc1 = nn.Linear(in_features=15488, out_features=2048)
+        self.fc1 = nn.Linear(in_features=138880, out_features=2048)
         self.relu6 = ReLU()
         self.fc2 = nn.Linear(in_features=2048, out_features=2048)
         self.relu7 = ReLU()
@@ -183,9 +184,25 @@ def train_one_epoch(epoch_index):
         #print('images ',images.shape)
         #print('labels ', labels)
         #print('labels.view ',labels.view(-1, 1).shape)
+        
+        # Zero your gradients for every batch!
         optimizer.zero_grad()
         # print(labels)
         outputs = model(images)
+        #print('....')
+        #print('image 0', images[0])
+        #print('image 1', images[1])
+        #img0 = images[0]
+        #img1 = images[1]
+        #import matplotlib.pyplot as plt
+  
+        #from IPython import embed;embed()
+        #plt.imshow(img0[0])
+        #plt.imshow(img1[0])
+        #plt.show()
+
+        
+        #print('....')
         #print(outputs)
 
         # Compute the loss and its gradients
@@ -196,17 +213,38 @@ def train_one_epoch(epoch_index):
 
         # Adjust learning weights
         optimizer.step()
-
-
-
-
-
-epoch_number = 10
-# Make sure gradient tracking is on, and do a pass over the data
-model.train()
-train_one_epoch(epoch_number)
-
         
+        # Gather data and report
+        running_loss += loss.item()
+        if i % 100 == 99:
+            last_loss = running_loss / 100 # loss per batch
+            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            running_loss = 0.
+
+    return last_loss
+
+
+
+
+epoch_number = 0
+
+EPOCHS = 5
+#code is from https://pytorch.org/tutorials/beginner/introyt/trainingyt.html 
+# Make sure gradient tracking is on, and do a pass over the data
+
+model.train()
+#train_one_epoch(epoch_number)
+
+for epoch in range(EPOCHS):
+    print('EPOCH {}:'.format(epoch_number + 1))
+
+    # Make sure gradient tracking is on, and do a pass over the data
+    model.train(True)
+    avg_loss = train_one_epoch(epoch_number)
+
+    # We don't need gradients on to do reporting
+    model.train(False)     
+    epoch_number += 1   
         
         
         
