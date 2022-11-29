@@ -26,6 +26,7 @@ from torch.nn import MaxPool2d
 from torch.nn import ReLU
 from torch.nn import LogSoftmax
 from torch import flatten
+from torch.utils.data.sampler import SubsetRandomSampler
 
  
 df=pd.read_csv('../DataCollection-REDfirst/OGP_dataset_collection_RED.csv', names=['image_name', 'x', 'y', 'z','w','X', 'Y', 'Z'], header=None)
@@ -107,9 +108,31 @@ class ClothDataset(Dataset):
 cloth_dataset = ClothDataset(csv_file='../DataCollection-REDfirst/OGP_dataset_collection_RED.csv',
                                     root_dir='../DataCollection-REDfirst/')
                                     
-training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuffle=True, num_workers=2)                                            
-        
 
+validation_split = .2
+shuffle_dataset = True
+random_seed= 42   
+                                
+dataset_size = len(cloth_dataset)            
+indices = list(range(dataset_size))
+split = int(np.floor(validation_split * dataset_size))                      
+if shuffle_dataset :
+    np.random.seed(random_seed)
+    np.random.shuffle(indices)
+train_indices, val_indices = indices[split:], indices[:split]          
+#print( 'train_indices', train_indices)         
+#print( 'val_indices', val_indices)  
+train_sampler = SubsetRandomSampler(train_indices)
+valid_sampler = SubsetRandomSampler(val_indices) 
+             
+                                   
+training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16,  num_workers=2, sampler=train_sampler)
+validation_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, num_workers=2, sampler=valid_sampler)                                   
+                                   
+                                                          
+#without validation when only training was done                                    
+#training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuffle=True, num_workers=2)                                            
+        
 
 
 
@@ -176,7 +199,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 def train_one_epoch(epoch_index):
     running_loss = 0.000
     last_loss = 0.000
-    
+    running_tloss = 0.0
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
         images=data['image']
@@ -208,6 +231,7 @@ def train_one_epoch(epoch_index):
         # Compute the loss and its gradients
         #print('outputs model(images) ',outputs)
         loss = loss_fn(outputs, labels)
+        running_tloss += loss
         print(loss)
         loss.backward()
 
@@ -216,19 +240,22 @@ def train_one_epoch(epoch_index):
         
         # Gather data and report
         running_loss += loss.item()
-        if i % 100 == 99:
-            last_loss = running_loss / 100 # loss per batch
+        if i % 50 == 49:
+            last_loss = running_loss / 50 # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             running_loss = 0.
+        
+    avg_loss = running_tloss / (i + 1)
+            
 
-    return last_loss
+    return avg_loss,last_loss
 
 
 
 
 epoch_number = 0
 
-EPOCHS = 5
+EPOCHS = 10
 #code is from https://pytorch.org/tutorials/beginner/introyt/trainingyt.html 
 # Make sure gradient tracking is on, and do a pass over the data
 
@@ -240,11 +267,34 @@ for epoch in range(EPOCHS):
 
     # Make sure gradient tracking is on, and do a pass over the data
     model.train(True)
-    avg_loss = train_one_epoch(epoch_number)
+    avg_tloss,last_tloss = train_one_epoch(epoch_number)
 
     # We don't need gradients on to do reporting
-    model.train(False)     
+    model.train(False)   
+    
+    print('validation')
+    #validation:
+    running_vloss = 0.0
+    for i, vdata in enumerate(validation_loader):
+        vimages=vdata['image']
+        vlabels=vdata['OGP_pose'].float()
+        voutputs = model(vimages)        
+        vloss = loss_fn(voutputs, vlabels)
+        running_vloss += vloss
+        print (vloss)
+    
+    avg_vloss = running_vloss / (i + 1)
+    print('LOSS train: avg {} and last {}  valid: {}'.format(avg_tloss,last_tloss, avg_vloss))
+
+    
     epoch_number += 1   
+        
+        
+        
+        
+        
+        
+        
         
         
         
