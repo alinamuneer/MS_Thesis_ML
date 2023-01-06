@@ -214,9 +214,17 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
 
 
+
 epoch_number = 0
 
-EPOCHS = 10
+EPOCHS = 20
+
+
+
+#timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+writer = SummaryWriter('graphs/OGP_trainer_{}'.format(EPOCHS))
+
+
 #code is from https://www.geeksforgeeks.org/training-neural-networks-with-validation-using-pytorch/
 min_valid_loss = np.inf
 
@@ -249,6 +257,12 @@ for epoch in range(EPOCHS):
         
         # Gather data and report
         train_loss += loss.item()
+        
+        
+        
+        
+        
+         
     
 
     # We don't need gradients on to do reporting
@@ -272,16 +286,23 @@ for epoch in range(EPOCHS):
     #print('Epoch',(e+1) \t\t Training Loss: {\train_loss / len(trainloader)} \t\t Validation Loss: {\valid_loss / len(validloader)}')
     print('Loss train:{} and Loss valid: {}'.format(train_loss/len(training_loader),valid_loss/len(validation_loader))    )
     
-
-    epoch_number += 1   
+    
+    
+    writer.add_scalars('Training vs. Validation Loss', { 'Training' : train_loss/len(training_loader), 'Validation' : valid_loss/len(validation_loader) },epoch_number + 1)
+    writer.flush()
+    
+     
+    
         
     if min_valid_loss > valid_loss:
         print('Validation Loss Decreased')
         min_valid_loss = valid_loss
-         
         # Saving State Dict
         #torch.save(model.state_dict(), 'saved_model.pth')    
-        
+    
+    
+    print('training length:{} and valid length: {}'.format(len(training_loader),len(validation_loader))    )
+    epoch_number += 1       
         
         
         
