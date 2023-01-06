@@ -45,20 +45,35 @@ min_euler_x=df['euler_x'].min()
 max_euler_y=df['euler_y'].max()
 min_euler_y=df['euler_y'].min()
 
-#max_z=df['z'].max()
-#min_z=df['z'].min()
-
-#max_w=df['w'].max()
-#min_w=df['w'].min()
-
 max_position_X=df['position_X'].max()
 min_position_X=df['position_X'].min()
 
 max_position_Y=df['position_Y'].max()
 min_position_Y=df['position_Y'].min()
 
-#max_Z=df['Z'].max()
-#min_Z=df['Z'].min()
+
+
+#Testing csv file
+#in csv data is stored as quarternions x y z w then euler z y x and position x y z 
+test_df=pd.read_csv('../DataCollection-RED-Largedataset-Testing/OGP_dataset_collection_RED.csv', names=['image_name', 'quarternion_x', 'quarternion_y', 'quarternion_z','quarternion_w','euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
+
+#FINDING MAX AND MIN
+test_max_euler_x=test_df['euler_x'].max()
+test_min_euler_x=test_df['euler_x'].min()
+
+test_max_euler_y=test_df['euler_y'].max()
+test_min_euler_y=test_df['euler_y'].min()
+
+test_max_position_X=test_df['position_X'].max()
+test_min_position_X=test_df['position_X'].min()
+
+test_max_position_Y=test_df['position_Y'].max()
+test_min_position_Y=test_df['position_Y'].min()
+
+
+
+
+
 
 
 
@@ -113,6 +128,78 @@ class ClothDataset(Dataset):
 
         return sample
  
+ 
+ 
+ 
+class TestDataset(Dataset):
+
+    def __init__(self, csv_file, root_dir, transform=None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations of OGP.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.OGP = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.OGP)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.root_dir,
+                                self.OGP.iloc[idx, 0])
+        image = io.imread(img_name)
+        #print(self.OGP.iloc[idx, 0])
+        image = image.astype('float32')/255.0
+        image = np.array([image])
+        OGP_pose = self.OGP.iloc[idx, 6:10]
+        OGP_pose = np.array([OGP_pose])
+        #print(OGP_pose)
+        #normalizing values between 0-1 using the max and min of each label column in csv
+        #rather use a vector to do normalization, don't do one by one normalization here
+        
+        OGP_pose[0,0]=(OGP_pose[0,0]-test_min_euler_y)/(test_max_euler_y-test_min_euler_y)
+        OGP_pose[0,1]=(OGP_pose[0,1]-test_min_euler_x)/(test_max_euler_x-test_min_euler_x)
+        OGP_pose[0,2]=(OGP_pose[0,2]-test_min_position_X)/(test_max_position_X-test_min_position_X)
+        OGP_pose[0,3]=(OGP_pose[0,3]-test_min_position_Y)/(test_max_position_Y-test_min_position_Y)
+        
+        OGP_pose = OGP_pose.astype('float').flatten()
+        
+        
+        
+        sample = {'image': image, 'OGP_pose': OGP_pose}
+        
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
       
 cloth_dataset = ClothDataset(csv_file='../DataCollection-RED-Largedataset-Training/OGP_dataset_collection_RED.csv',
                                     root_dir='../DataCollection-RED-Largedataset-Training/')
@@ -140,8 +227,26 @@ validation_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, nu
                                    
                                                           
 #without validation when only training was done                                    
-#training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuffle=True, num_workers=2)                                            
-        
+#training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, shuffle=True, num_workers=2)  
+   
+   
+   
+   
+   
+                                          
+#Testing
+      
+test_sim_dataset = TestDataset(csv_file='../DataCollection-RED-Largedataset-Testing/OGP_dataset_collection_RED.csv',root_dir='../DataCollection-RED-Largedataset-Testing/')
+testing_loader = torch.utils.data.DataLoader(test_sim_dataset, batch_size=16,shuffle=False, num_workers=2)  
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,8 +326,8 @@ EPOCHS = 20
 
 
 
-#timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('graphs/OGP_trainer_{}'.format(EPOCHS))
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+writer = SummaryWriter('graphs_full_sim_dataset/OGP_trainer_{}_time_{}'.format(EPOCHS,timestamp))
 
 
 #code is from https://www.geeksforgeeks.org/training-neural-networks-with-validation-using-pytorch/
@@ -298,11 +403,51 @@ for epoch in range(EPOCHS):
         print('Validation Loss Decreased')
         min_valid_loss = valid_loss
         # Saving State Dict
-        #torch.save(model.state_dict(), 'saved_model.pth')    
+        torch.save(model.state_dict(), 'OGP_saved_model_LargeDataset.pth')    
     
     
     print('training length:{} and valid length: {}'.format(len(training_loader),len(validation_loader))    )
     epoch_number += 1       
+        
+
+
+
+        
+        
+#https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
+https://learn.microsoft.com/en-us/windows/ai/windows-ml/tutorials/pytorch-analysis-train-model
+
+#test the testing dataset        
+            
+model = GraspEstimationModel()
+
+model.load_state_dict(torch.load('OGP_saved_model_LargeDataset.pth'))        
+if torch.cuda.is_available():
+    model = model.cuda()        
+        
+model.eval()        
+correct = 0
+total = 0
+# since we're not training, we don't need to calculate the gradients for our outputs
+with torch.no_grad():
+    for i, data in enumerate(testing_loader):
+        test_images=data['image']
+        test_labels=data['OGP_pose'].float()
+        if torch.cuda.is_available():
+            test_images, test_labels = test_images.cuda(), test_labels.cuda()
+        # calculate outputs by running images through the network
+        test_outputs = model(test_images)        
+        testloss = loss_fn(test_outputs, test_labels)
+        test__loss += testloss.item()
+        
+
+print('Loss Test:{} '.format(test__loss/len(testing_loader)   )      
+
+        
+        
+        
+        
+        
         
         
         
