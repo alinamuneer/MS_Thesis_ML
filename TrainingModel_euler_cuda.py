@@ -36,7 +36,7 @@ from datetime import datetime
 
 
 #in csv data is stored as quarternions x y z w then euler z y x and position x y z
-df=pd.read_csv('../DataCollection-RED-Largedataset-RLF-Training/OGP_dataset_collection_RED.csv', names=['image_name', 'quarternion_x', 'quarternion_y', 'quarternion_z','quarternion_w','euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
+df=pd.read_csv('../DataCollection-RED-Largedataset-Training/OGP_dataset_collection_RED.csv', names=['image_name', 'quarternion_x', 'quarternion_y', 'quarternion_z','quarternion_w','euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
 
 #FINDING MAX AND MIN
 max_euler_x=df['euler_x'].max()
@@ -188,8 +188,8 @@ class TestDataset(Dataset):
 
 
 
-cloth_dataset = ClothDataset(csv_file='../DataCollection-RED-Largedataset-RLF-Training/OGP_dataset_collection_RED.csv',
-                                    root_dir='../DataCollection-RED-Largedataset-RLF-Training/')
+cloth_dataset = ClothDataset(csv_file='../DataCollection-RED-Largedataset-Training/OGP_dataset_collection_RED.csv',
+                                    root_dir='../DataCollection-RED-Largedataset-Training/')
 
 
 validation_split = .2
@@ -291,19 +291,19 @@ if torch.cuda.is_available():
 
 loss_fn = torch.nn.MSELoss()
 #loss_fn = torch.nn.SmoothL1Loss
-optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
 
 
 epoch_number = 0
 
-EPOCHS = 10
+EPOCHS = 20
 
 
 
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('graphs_RLF/OGP_trainer_{}_time_{}'.format(EPOCHS,timestamp))
+writer = SummaryWriter('graphs_full/OGP_trainer_0.001LR_{}_time_{}'.format(EPOCHS,timestamp))
 
 
 #code is from https://www.geeksforgeeks.org/training-neural-networks-with-validation-using-pytorch/
@@ -410,7 +410,7 @@ for epoch in range(EPOCHS):
         print('Validation Loss Decreased')
         min_valid_loss = valid_loss
         # Saving State Dict
-        torch.save(model.state_dict(), 'OGP_saved_model_RLF.pth')
+        torch.save(model.state_dict(), 'OGP_saved_model_Full_0.001LR.pth')
         #for model R, 30 epochs torch.save(model.state_dict(), 'OGP_saved_model_R.pth')
         #for model RLF, 20 epochs torch.save(model.state_dict(), 'OGP_saved_model_LargeDataset.pth'')
         #for model RLF, 30 epochs torch.save(model.state_dict(), 'OGP_saved_model_RLF_30.pth')
