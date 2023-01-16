@@ -34,7 +34,7 @@ from datetime import datetime
 
 
 
-
+################TRAINING CSV FILE###############
 #in csv data is stored as quarternions x y z w then euler z y x and position x y z
 df=pd.read_csv('../DataCollection-RED-Largedataset-Training/OGP_dataset_collection_RED.csv', names=['image_name', 'quarternion_x', 'quarternion_y', 'quarternion_z','quarternion_w','euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
 
@@ -53,7 +53,7 @@ min_position_Y=df['position_Y'].min()
 
 
 
-#Testing csv file
+##############Testing SIMULATION csv file#################
 #in csv data is stored as quarternions x y z w then euler z y x and position x y z
 test_df=pd.read_csv('../DataCollection-RED-Largedataset-Testing/OGP_dataset_collection_RED.csv', names=['image_name', 'quarternion_x', 'quarternion_y', 'quarternion_z','quarternion_w','euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
 
@@ -69,6 +69,35 @@ test_min_position_X=test_df['position_X'].min()
 
 test_max_position_Y=test_df['position_Y'].max()
 test_min_position_Y=test_df['position_Y'].min()
+
+
+
+
+#############TESTING REAL CSV FILE#################
+
+#in csv data is stored as quarternions x y z w then euler z y x and position x y z
+Rtest_df=pd.read_csv('../DataCollection-Real-Pr2/ogp_real_world_Euler.csv', names=['image_name', 'euler_z','euler_y','euler_x','position_X', 'position_Y', 'position_Z'], header=None)
+
+#FINDING MAX AND MIN
+Rtest_max_euler_x=Rtest_df['euler_x'].max()
+Rtest_min_euler_x=Rtest_df['euler_x'].min()
+
+Rtest_max_euler_y=Rtest_df['euler_y'].max()
+Rtest_min_euler_y=Rtest_df['euler_y'].min()
+
+Rtest_max_position_X=Rtest_df['position_X'].max()
+Rtest_min_position_X=Rtest_df['position_X'].min()
+
+Rtest_max_position_Y=Rtest_df['position_Y'].max()
+Rtest_min_position_Y=Rtest_df['position_Y'].min()
+
+
+
+
+
+
+
+
 
 
 
@@ -130,7 +159,7 @@ class ClothDataset(Dataset):
 
 
 
-class TestDataset(Dataset):
+class SimTestDataset(Dataset):
 
     def __init__(self, csv_file, root_dir, transform=None):
         """
@@ -182,6 +211,70 @@ class TestDataset(Dataset):
 
 
 
+ 
+ 
+class RealTestDataset(Dataset):
+
+    def __init__(self, csv_file, root_dir, transform=None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations of OGP.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.OGP = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.OGP)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.root_dir,
+                                self.OGP.iloc[idx, 0])
+        img = io.imread(img_name)
+        #print(self.OGP.iloc[idx, 0])  
+        img[np.where(img > 920)] = 0
+        img = img/3.6078
+        img[np.where(img > 60)] = 255
+        img[np.where(img <= 60)] = 0
+        image = 1-img.astype('float32')/255.0
+        image = np.array([image])
+        #print(image)
+        
+        OGP_pose = self.OGP.iloc[idx, 2:6]
+        OGP_pose = np.array([OGP_pose])
+        #print(OGP_pose)
+        #normalizing values between 0-1 using the max and min of each label column in csv
+        #rather use a vector to do normalization, don't do one by one normalization here
+        #OGP_pose[0,0]=math.cos(OGP_pose[0,0])
+        #OGP_pose[0,1]=math.cos(OGP_pose[0,1])
+        OGP_pose[0,0]=(OGP_pose[0,0]-Rtest_min_euler_y)/(Rtest_max_euler_y-Rtest_min_euler_y)
+        OGP_pose[0,1]=(OGP_pose[0,1]-Rtest_min_euler_x)/(Rtest_max_euler_x-Rtest_min_euler_x)
+        OGP_pose[0,2]=(OGP_pose[0,2]-Rtest_min_position_X)/(Rtest_max_position_X-Rtest_min_position_X)
+        OGP_pose[0,3]=(OGP_pose[0,3]-Rtest_min_position_Y)/(Rtest_max_position_Y-Rtest_min_position_Y)
+
+        OGP_pose = OGP_pose.astype('float').flatten()
+        #print(OGP_pose)
+        #print(image.shape)
+
+        sample = {'image': image, 'OGP_pose': OGP_pose}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
+
+
+
+
+
+
 
 
 
@@ -209,14 +302,22 @@ train_sampler = SubsetRandomSampler(train_indices)
 valid_sampler = SubsetRandomSampler(val_indices)
 
 
+
+#############TRAINING SIMULATION DATASET###########
 training_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16,  num_workers=2, sampler=train_sampler)
 validation_loader = torch.utils.data.DataLoader(cloth_dataset, batch_size=16, num_workers=2, sampler=valid_sampler)
 
 
-test_sim_dataset = TestDataset(csv_file='../DataCollection-RED-Largedataset-Testing/OGP_dataset_collection_RED.csv',root_dir='../DataCollection-RED-Largedataset-Testing/')
-testing_loader = torch.utils.data.DataLoader(test_sim_dataset, batch_size=16,shuffle=False, num_workers=2)
+
+##########TESTING SIMULATION DATASET############
+#test_sim_dataset = SimTestDataset(csv_file='../DataCollection-RED-Largedataset-Testing/OGP_dataset_collection_RED.csv',root_dir='../DataCollection-RED-Largedataset-Testing/')
+#testing_loader = torch.utils.data.DataLoader(test_sim_dataset, batch_size=16,shuffle=False, num_workers=2)
 
 
+
+##########TESTING REAL DATASET#################
+test_real_dataset = RealTestDataset(csv_file='../DataCollection-Real-Pr2/ogp_real_world_Euler.csv',root_dir='../DataCollection-Real-Pr2/')
+testing_loader = torch.utils.data.DataLoader(test_real_dataset, batch_size=16,shuffle=False, num_workers=2)
 
 
 
@@ -303,7 +404,7 @@ EPOCHS = 20
 
 
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('graphs_full/OGP_trainer_0.001LR_{}_time_{}'.format(EPOCHS,timestamp))
+writer = SummaryWriter('Final_graphs_full/OGP_trainer_0.001LR_RealTest{}_time_{}'.format(EPOCHS,timestamp))
 
 
 #code is from https://www.geeksforgeeks.org/training-neural-networks-with-validation-using-pytorch/
@@ -369,7 +470,7 @@ for epoch in range(EPOCHS):
         #print ('vloss: ',vloss)
 
     #print('Epoch',(e+1) \t\t Training Loss: {\train_loss / len(trainloader)} \t\t Validation Loss: {\valid_loss / len(validloader)}')
-    print('Loss train:{} and Loss valid: {}'.format(train_loss/len(training_loader),valid_loss/len(validation_loader))    )
+    #print('Loss train:{} and Loss valid: {}'.format(train_loss/len(training_loader),valid_loss/len(validation_loader))    )
 
 
 
@@ -396,10 +497,9 @@ for epoch in range(EPOCHS):
     		#print('test_labels: ',test_labels)
     		#print(testloss)
 
-	    #writer.add_scalars('Testing Loss w.r.t batch', { 'Testing' : test__loss/i })
-	    #writer.flush()
-    print('Loss train:{} and Loss valid: {} Loss Test: {} '.format(train_loss/len(training_loader),valid_loss/len(validation_loader),test__loss/len(validation_loader))    )
-    writer.add_scalars('Training vs. Validation vs Test Loss', { 'Training' : train_loss/len(training_loader), 'Validation' : valid_loss/len(validation_loader) ,'Testing' : test__loss/len(validation_loader)},epoch_number + 1)
+
+    print('Loss train:{} and Loss valid: {} Loss Test: {} '.format(train_loss/len(training_loader),valid_loss/len(validation_loader),test__loss/len(testing_loader))    )
+    writer.add_scalars('Training vs. Validation vs Test Loss', { 'Training' : train_loss/len(training_loader), 'Validation' : valid_loss/len(validation_loader) ,'Testing' : test__loss/len(testing_loader)},epoch_number + 1)
     writer.flush()
 
     ##########
@@ -410,18 +510,15 @@ for epoch in range(EPOCHS):
         print('Validation Loss Decreased')
         min_valid_loss = valid_loss
         # Saving State Dict
-        torch.save(model.state_dict(), 'OGP_saved_model_Full_0.001LR.pth')
-        #for model R, 30 epochs torch.save(model.state_dict(), 'OGP_saved_model_R.pth')
-        #for model RLF, 20 epochs torch.save(model.state_dict(), 'OGP_saved_model_LargeDataset.pth'')
-        #for model RLF, 30 epochs torch.save(model.state_dict(), 'OGP_saved_model_RLF_30.pth')
-        #for model Full, 20 epochs torch.save(model.state_dict(), 'OGP_saved_model_Full_20.pth')
-        #for model Full, 30 epochs torch.save(model.state_dict(), 'OGP_saved_model_Full_30.pth')
+        #torch.save(model.state_dict(), 'OGP_saved_model_Full_0.001LR.pth')
+        torch.save(model.state_dict(), 'OGP_saved_model_Full_0.001LR_RealTest.pth')
 
 
 
 
 
-    print('training length:{} and valid length: {}'.format(len(training_loader),len(validation_loader))    )
+
+    print('training length:{} and valid length: {} and Test length: {}'.format(len(training_loader),len(validation_loader),len(testing_loader))    )
     epoch_number += 1
 
 
